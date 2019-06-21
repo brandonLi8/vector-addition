@@ -1,7 +1,7 @@
 // Copyright 2019, University of Colorado Boulder
 
 /**
- * Factory for creating icons that appear in Vector addition Simulation
+ * Factory methods for creating the various icons that appear in the sim.
  *
  * @author Brandon Li
  */
@@ -11,213 +11,399 @@ define( function( require ) {
   // modules
   const ArcArrowNode = require( 'VECTOR_ADDITION/common/view/ArcArrowNode' );
   const ArrowNode = require( 'SCENERY_PHET/ArrowNode' );
+  const ComponentStyles = require( 'VECTOR_ADDITION/common/model/ComponentStyles' );
   const FontAwesomeNode = require( 'SUN/FontAwesomeNode' );
+  const Line = require( 'SCENERY/nodes/Line' );
   const Node = require( 'SCENERY/nodes/Node' );
   const Path = require( 'SCENERY/nodes/Path' );
   const Shape = require( 'KITE/Shape' );
   const Util = require( 'DOT/Util' );
+  const Vector2 = require( 'DOT/Vector2' );
   const vectorAddition = require( 'VECTOR_ADDITION/vectorAddition' );
+  const VectorAdditionColors = require( 'VECTOR_ADDITION/common/VectorAdditionColors' );
+  const VectorTypes = require( 'VECTOR_ADDITION/common/model/VectorTypes' );
 
+  //----------------------------------------------------------------------------------------
   // constants
 
-  // arrow icon constants
-  const ARROW_ICON_LENGTH = 28;
-  const ARROW_ICON_COLOR = 'rgb( 40, 40, 120 )';
+  // Size of ALL icons created in this factory that are for radio buttons
+  const RADIO_BUTTON_ICON_SIZE = 25;
 
-  // number of grid lines on the grid icon
-  const GRID_LINES = 3;
-  const GRID_SPACING = 7;
-  const GRID_LINE_WIDTH = 1;
-  const GRID_COLOR = 'rgb( 120, 120, 120 )';
+  // Defaults for all arrow instances
+  const ARROW_ICON_OPTIONS = {
+    fill: VectorAdditionColors.VECTOR_GROUP_1_COLORS.fill,
+    stroke: VectorAdditionColors.VECTOR_ICON_STROKE_COLOR,
+    lineWidth: 0.5,
+    headHeight: 5,
+    headWidth: 9,
+    tailWidth: 4,
+    opacity: 1
+  };
 
-  // angle icon constants
-  const ANGLE_ICON_ANGLE = 55;
-  const ANGLE_LINE_LENGTH = 20;
-  const ANGLE_ICON_CIRCLE_RADIUS = 13;
-  const ANGLE_ICON_OPTIONS = {
-    arrowheadWidth: 5,
-    arrowheadHeight: 3,
-    arcOptions: {
-      stroke: 'rgb( 50, 50, 50 )'
+  // Semi opaque arrow for the components on the component radio button icons
+  const OPAQUE_ARROW_OPTIONS = _.extend( {}, ARROW_ICON_OPTIONS, {
+    opacity: 0.4
+  } );
+
+  // Radius for all arc arrow instances
+  const ARC_ARROW_RADIUS = 14;
+
+
+  class VectorAdditionIconFactory {
+    /**
+     * Create the Vector Icon that appears on the vector creator panel
+     * @param {Vector2} initialVector - in model coordinates
+     * @param {VectorTypes} vectorType
+     * @param {Object} [options]
+     * @public
+     */
+    static createVectorCreatorPanelIcon( initialVector, vectorType, options ) {
+
+      assert && assert( initialVector instanceof Vector2, `invalid initialVector: ${initialVector}` );
+      assert && assert( vectorType && VectorTypes.includes( vectorType ),
+        `invalid vectorType: ${vectorType}` );
+
+      //----------------------------------------------------------------------------------------
+
+      options = _.extend( {
+        lineWidth: 0,
+        tailWidth: 4,
+        headWidth: 10.5,
+        headHeight: 6,
+        cursor: 'pointer',
+        arrowSize: 30,
+        fill: vectorType === VectorTypes.ONE ? VectorAdditionColors.VECTOR_GROUP_1_COLORS.fill :
+              VectorAdditionColors.VECTOR_GROUP_2_COLORS.fill
+      }, options );
+
+
+      const iconVector = initialVector.normalized().timesScalar( options.arrowSize );
+
+      return new ArrowNode( 0, 0, iconVector.x, iconVector.y, options );
     }
-  };
 
-  // vector icons constants
-  const ARROW_LIGHT_COLOR = 'rgb( 176, 224, 230 )';
-  const ARROW_DARK_COLOR = 'rgb( 0, 191, 255 )';
-  const VECTOR_ICON_HEAD_HEIGHT = 3;
-  const VECTOR_ICON_HEAD_WIDTH = 6;
-  const VECTOR_ICON_TAIL_WIDTH = 4;
+    /*---------------------------------------------------------------------------*
+     * The Following are Icons that appear next to check boxes
+     *---------------------------------------------------------------------------*/
+    /**
+     * Creates the icon that appears next to the 'Sum' visibility checkbox
+     * @param {VectorTypes} vectorType
+     * @param {Object} [options]
+     * @returns {Node}
+     * @public
+     */
+    static createSumIcon( vectorType, options ) {
 
-  // the scale on the invisible component icon eye
-  const INVISIBLE_COMPONENT_ICON_SCALE = 0.7;
+      assert && assert( vectorType && VectorTypes.includes( vectorType ),
+        `invalid vectorType: ${vectorType}` );
 
-  // the icon size for the component icons
-  const COMPONENT_ICON_SIZE = 25;
-  const AXIS_ICON_SUBBOX_SIZE = 10;
-  const AXIS_ICON_LINE_DASH = [ 2, 2 ];
+      //----------------------------------------------------------------------------------------
 
-  // options for light shaded arrow
-  const LIGHT_ARROW_OPTIONS = {
-    fill: ARROW_LIGHT_COLOR,
-    stroke: 'rgb( 150, 150, 150 )',
-    headHeight: VECTOR_ICON_HEAD_HEIGHT,
-    headWidth: VECTOR_ICON_HEAD_WIDTH,
-    tailWidth: VECTOR_ICON_TAIL_WIDTH
-  };
+      options = _.extend( {}, ARROW_ICON_OPTIONS, {
+        lineWidth: 1,
+        headHeight: 10,
+        arrowSize: 24,
+        fill: vectorType === VectorTypes.ONE ? VectorAdditionColors.VECTOR_GROUP_1_COLORS.sum :
+              VectorAdditionColors.VECTOR_GROUP_2_COLORS.sum
+      }, options );
 
-  // options for drak shaded arrow
-  const DARK_ARROW_OPTIONS = {
-    fill: ARROW_DARK_COLOR,
-    stroke: 'rgb( 150, 150, 150 )',
-    headHeight: VECTOR_ICON_HEAD_HEIGHT,
-    headWidth: VECTOR_ICON_HEAD_WIDTH,
-    tailWidth: VECTOR_ICON_TAIL_WIDTH
-  };
+      return new ArrowNode( 0, 0, options.arrowSize, 0, options );
+    }
 
-// create a object with methods that return icons
-  const VectorAdditionIconFactory = {
-    // creates an arrow icon node
-    createArrowIcon: () => {
-      return new ArrowNode( 0, 0, ARROW_ICON_LENGTH, 0, {
-        fill: ARROW_ICON_COLOR
-      } );
-    },
+    /**
+     * Creates the icon that appears next to the checkbox that toggles the 'Angle' visibility
+     * @param {Object} [options]
+     * @returns {Node}
+     * @public
+     */
+    static createAngleIcon( options ) {
 
-    // creates an icon that shows the grid of a graph
-    createGridIcon: () => {
-      // create a shape for the grid
-      const gridShape = new Shape();
+      options = _.extend( {
+        angle: 50, // {number} in degrees
+        iconSize: 20, // {number}
+        arcRadius: ARC_ARROW_RADIUS, // {number}
+        color: VectorAdditionColors.ANGLE_ICON_COLOR, // {string}
+        arcArrowOptions: null // {object} see defaults bellow
+      }, options );
 
-      // start with horizontal grid lines
-      for ( let i = 0; i < GRID_LINES; i++ ) {
-        gridShape.moveTo( 0, i * ( GRID_SPACING ) + GRID_SPACING )
-          .horizontalLineTo( ( GRID_LINES + 1 ) * GRID_SPACING );
-      }
-      // now vertical lines
-      for ( let j = 0; j < GRID_LINES; j++ ) {
-        gridShape.moveTo( j * ( GRID_SPACING ) + GRID_SPACING, 0 )
-          .verticalLineTo( ( GRID_LINES + 1 ) * GRID_SPACING );
-      }
-      // return a path as a node
-      return new Path( gridShape, {
-        lineWidth: GRID_LINE_WIDTH,
-        stroke: GRID_COLOR
-      } );
-    },
+      options.arcArrowOptions = _.extend( {
+        arrowheadWidth: 5, // {number}
+        arrowheadHeight: 3, // {number}
+        arcOptions: {
+          stroke: options.color // {string}
+        }
+      }, options.arcArrowOptions );
 
-    // Creates an icon that shows a angle
-    createAngleIcon: () => {
-      const icon = new Node();
-      // // shape for the outline of the icon
+      //----------------------------------------------------------------------------------------
+
+      // Create the Shape for the outline lines of the icon
       const wedgeShape = new Shape();
 
-      const angleInRadians = Util.toRadians( ANGLE_ICON_ANGLE );
-      // define the origin at the bottom left (tip of the wedge)
-      // start from right and move to the left (origin) and then move to the top of the wedge
-      wedgeShape.moveTo( ANGLE_LINE_LENGTH, 0 )
-        .horizontalLineTo( 0 )
-        .lineTo( Math.cos( angleInRadians ) * ANGLE_LINE_LENGTH,
-          -1 * Math.sin( angleInRadians ) * ANGLE_LINE_LENGTH );
+      const angleIconAngleRadians = Util.toRadians( options.angle );
 
+      // Define the origin at the bottom left (tip of the wedge)
+      // Start from right and move to the left (origin) and then move to the top right corner of the wedge
+      wedgeShape.moveTo( options.iconSize, 0 )
+        .horizontalLineTo( 0 )
+        .lineTo( Math.cos( angleIconAngleRadians ) * options.iconSize,
+          -1 * Math.sin( angleIconAngleRadians ) * options.iconSize );
+
+      // Create the path for the wedgeShape
       const wedgePath = new Path( wedgeShape, {
+        stroke: options.color
+      } );
+
+      const arcArrow = new ArcArrowNode( options.angle, options.arcRadius, options.arcArrowOptions );
+
+      return new Node( {
+        children: [ wedgePath, arcArrow ]
+      } );
+    }
+
+    /**
+     * Creates the icon that appears next to the checkbox that toggles the Grid visibility
+     * @param {Object} [options]
+     * @returns {Node}
+     * @public
+     */
+    static createGridIcon( options ) {
+
+      options = _.extend( {
+        rows: 3, // {number}
+        cols: 3, // {number}
+        gridLineSpacing: 6, // {number} spacing between each grid line
+        gridPathOptions: null // {object} defaults bellow
+      }, options );
+
+      options.gridPathOptions = _.extend( {
+        lineWidth: 1, // {number}
+        stroke: VectorAdditionColors.GRID_ICON_COLOR // {string}
+      }, options.gridPathOptions );
+
+      //----------------------------------------------------------------------------------------
+
+      // Create a shape for the grid
+      const gridShape = new Shape();
+
+      // Draw each row
+      for ( let row = 0; row < options.rows; row++ ) {
+        gridShape.moveTo( 0, row * ( options.gridLineSpacing ) + options.gridLineSpacing )
+          .horizontalLineTo( ( options.cols + 1 ) * options.gridLineSpacing );
+      }
+      // Draw each col
+      for ( let col = 0; col < options.cols; col++ ) {
+        gridShape.moveTo( col * ( options.gridLineSpacing ) + options.gridLineSpacing, 0 )
+          .verticalLineTo( ( options.rows + 1 ) * options.gridLineSpacing );
+      }
+
+      return new Path( gridShape, options.gridPathOptions );
+    }
+
+    /*---------------------------------------------------------------------------*
+     * The Following are icons that appear in the Component Style Radio Buttons
+     *---------------------------------------------------------------------------*/
+    /**
+     * Convenience method to get a component style radio button icon
+     * @param {ComponentStyles} componentStyle
+     * @param {Object} options
+     * @public
+     */
+    static createComponentStyleIcon( componentStyle, options ) {
+
+      assert && assert( componentStyle && ComponentStyles.includes( componentStyle ),
+        `invalid componentStyle: ${componentStyle}` );
+
+      switch( componentStyle ) {
+        case ComponentStyles.INVISIBLE:
+          return this.createInvisibleComponentStyleIcon( options );
+        case ComponentStyles.PARALLELOGRAM:
+          return this.createParallelogramComponentStyleIcon( options );
+        case ComponentStyles.TRIANGLE:
+          return this.createTriangleComponentStyleIcon( options );
+        case ComponentStyles.ON_AXIS:
+          return this.createOnAxisComponentStyleIcon( options );
+        default:
+          throw new Error( `invalid componentStyle: ${componentStyle}` );
+      }
+    }
+
+    /**
+     * Creates the Icon for the invisible display style component radio button
+     * @param {Object} [options]
+     * @public
+     */
+    static createInvisibleComponentStyleIcon( options ) {
+      return new FontAwesomeNode( 'eye_close', _.extend( {
+        maxWidth: RADIO_BUTTON_ICON_SIZE + 10
+      }, options ) );
+    }
+
+    /**
+     * Create the Icon for the parallelogram component radio button
+     * @param {Object} [options]
+     * @public
+     */
+    static createParallelogramComponentStyleIcon( options ) {
+
+      // The icon has three arrows, a vector arrow and its 2 components (opaque)
+      const vectorArrow = new ArrowNode( 0, 0, RADIO_BUTTON_ICON_SIZE, -RADIO_BUTTON_ICON_SIZE, ARROW_ICON_OPTIONS );
+
+      const xComponentArrow = new ArrowNode( 0, 0, RADIO_BUTTON_ICON_SIZE, 0, OPAQUE_ARROW_OPTIONS );
+
+      const yComponentArrow = new ArrowNode( 0, 0, 0, -RADIO_BUTTON_ICON_SIZE, OPAQUE_ARROW_OPTIONS );
+
+      return new Node( _.extend( {
+        children: [ xComponentArrow, yComponentArrow, vectorArrow ]
+      }, options ) );
+    }
+
+    /**
+     * Create the Icon for the triangle component radio button
+     * @param {Object} [options]
+     * @public
+     */
+    static createTriangleComponentStyleIcon( options ) {
+
+      // The icon has three arrows, a vector arrow and its 2 components (opaque)
+      const vectorArrow = new ArrowNode( 0, 0, RADIO_BUTTON_ICON_SIZE, -RADIO_BUTTON_ICON_SIZE, ARROW_ICON_OPTIONS );
+
+      const xComponentArrow = new ArrowNode( 0, 0, RADIO_BUTTON_ICON_SIZE, 0, OPAQUE_ARROW_OPTIONS );
+
+      const yComponentArrow = new ArrowNode(
+        RADIO_BUTTON_ICON_SIZE,
+        0,
+        RADIO_BUTTON_ICON_SIZE,
+        -RADIO_BUTTON_ICON_SIZE,
+        OPAQUE_ARROW_OPTIONS );
+
+      return new Node( _.extend( {
+        children: [ xComponentArrow, yComponentArrow, vectorArrow ]
+      }, options ) );
+    }
+
+    /**
+     * Create the Icon for the on axis component radio button
+     * @param {Object} [options]
+     * @public
+     */
+    static createOnAxisComponentStyleIcon( options ) {
+
+      options = _.extend( {
+        subBoxSize: 10, // The Icon draws a sub box at the bottom left
+        lineDash: [ 2, 2 ], // Line dash
+        stroke: 'black'
+      }, options );
+
+      //----------------------------------------------------------------------------------------
+
+      // The icon has three arrows, a vector arrow and its 2 components (opaque)
+      const vectorArrow = new ArrowNode(
+        options.subBoxSize,
+        -1 * options.subBoxSize,
+        RADIO_BUTTON_ICON_SIZE,
+        -1 * RADIO_BUTTON_ICON_SIZE,
+        ARROW_ICON_OPTIONS
+      );
+
+      const xComponentArrow = new ArrowNode( options.subBoxSize, 0, RADIO_BUTTON_ICON_SIZE, 0, OPAQUE_ARROW_OPTIONS );
+
+      const yComponentArrow = new ArrowNode( 0, -options.subBoxSize, 0, -RADIO_BUTTON_ICON_SIZE, OPAQUE_ARROW_OPTIONS );
+
+      //----------------------------------------------------------------------------------------
+      // Create a dashed line shape
+      const dashedLineShape = new Shape();
+
+      // Draw the first 2 lines around the sub box
+      dashedLineShape.moveTo( 0, -options.subBoxSize )
+        .horizontalLineTo( options.subBoxSize )
+        .verticalLineToRelative( options.subBoxSize );
+
+      // Draw the lines around the icon
+      dashedLineShape.moveTo( 0, -RADIO_BUTTON_ICON_SIZE )
+        .horizontalLineTo( RADIO_BUTTON_ICON_SIZE )
+        .verticalLineToRelative( RADIO_BUTTON_ICON_SIZE );
+
+      // Create the shape of the path
+      const dashedLinePath = new Path( dashedLineShape, options );
+
+      return new Node( {
+        children: [ xComponentArrow, yComponentArrow, dashedLinePath, vectorArrow ]
+      } );
+    }
+
+    /*---------------------------------------------------------------------------*
+     * The Following are icons that appear in the Coordinate Snap Modes Radio Buttons
+     *---------------------------------------------------------------------------*/
+    /**
+     * Create the Icon for the cartesian coordinate snap mode radio button
+     * @param {Object} [options]
+     * @public
+     */
+    static createCartesianIcon( options ) {
+
+      options = _.extend( {}, ARROW_ICON_OPTIONS, {
+        fill: VectorAdditionColors.CARTESIAN_ICON_COLOR,
+        tailWidth: 2.5,
+        lineWidth: 0
+      }, options );
+
+      //----------------------------------------------------------------------------------------
+
+      // The icon has 3 arrows, start with the vector then its 2 components
+      const xComponentArrow = new ArrowNode( 0, 0, RADIO_BUTTON_ICON_SIZE, 0, options );
+
+      const yComponentArrow = new ArrowNode(
+        RADIO_BUTTON_ICON_SIZE,
+        0,
+        RADIO_BUTTON_ICON_SIZE,
+        -RADIO_BUTTON_ICON_SIZE,
+        options );
+
+      const cartesianArrow = new ArrowNode( 0, 0, RADIO_BUTTON_ICON_SIZE, -RADIO_BUTTON_ICON_SIZE, ARROW_ICON_OPTIONS );
+
+      return new Node( {
+        children: [ xComponentArrow, yComponentArrow, cartesianArrow ]
+      } );
+    }
+
+    /**
+     * Create the Icon for the cartesian coordinate polar mode radio button
+     * @param {Object} [options]
+     * @public
+     */
+    static createPolarIcon( options ) {
+
+      options = _.extend( {}, ARROW_ICON_OPTIONS, {
+        fill: VectorAdditionColors.POLAR_ICON_VECTOR_COLOR,
+        lineWidth: 0,
+        arcRadius: ARC_ARROW_RADIUS,
+        arcArrowOptions: null
+      }, options );
+
+      options.arcArrowOptions = _.extend( {
+        arrowheadWidth: 4, // {number}
+        arrowheadHeight: 3, // {number}
+        arcOptions: {
+          stroke: 'black' // {string}
+        }
+      }, options.arcArrowOptions );
+
+      // Create an arrow vector
+      const arrowVector = new ArrowNode( 0, 0, RADIO_BUTTON_ICON_SIZE, -RADIO_BUTTON_ICON_SIZE, options );
+
+      // Create an arc arrow
+      const arcArrow = new ArcArrowNode( 45, options.arcRadius, options.arcArrowOptions );
+
+      // create a baseline
+      const line = new Line( 0, 0, RADIO_BUTTON_ICON_SIZE, 0, {
         stroke: 'black'
       } );
 
-      // subtract 15 because arc arrow uses a subtended angle to caclulate a new angle
-      const arcArrow = new ArcArrowNode( ANGLE_ICON_ANGLE, ANGLE_ICON_CIRCLE_RADIUS, ANGLE_ICON_OPTIONS );
-      return icon.setChildren( [ wedgePath, arcArrow ] );
-    },
-
-    // Creates the icon on the radio button for the invisible component style
-    createInvisibleComponentStyleIcon: () => {
-      const icon = new FontAwesomeNode( 'eye_close' );
-      icon.scale( INVISIBLE_COMPONENT_ICON_SCALE );
-      return icon;
-    },
-
-    // Creates the icon on the radio button for the Parallelogram component style
-    createParallelogramComponentStyleIcon: () => {
-      // create a container for the arrow nodes
-      const icon = new Node();
-
-      // the icon has 3 arrows, start with the 'dark' version that points to the right and up
-      const darkArrow = new ArrowNode( 0, 0, COMPONENT_ICON_SIZE, -1 * COMPONENT_ICON_SIZE, DARK_ARROW_OPTIONS );
-
-      // now add a lighter arrow node that points to the right
-      const rightArrow = new ArrowNode( 0, 0, COMPONENT_ICON_SIZE, 0, LIGHT_ARROW_OPTIONS );
-
-      // now add a lighter arrow pointing upwards
-      const upArrow = new ArrowNode( 0, 0, 0, -1 * COMPONENT_ICON_SIZE, LIGHT_ARROW_OPTIONS );
-
-
-      icon.setChildren( [ rightArrow, upArrow, darkArrow ] );
-      return icon;
-    },
-
-    // Creates the icon on the radio button for the Triangle component style
-    createTriangleComponentStyleIcon: () => {
-      // create a container for the arrow nodes
-      const icon = new Node();
-
-      // the icon has 3 arrows, start with the 'dark' version that points to the right and up
-      const darkArrow = new ArrowNode( 0, 0, COMPONENT_ICON_SIZE, -1 * COMPONENT_ICON_SIZE, DARK_ARROW_OPTIONS );
-
-      // now add a lighter arrow node that points to the right
-      const rightArrow = new ArrowNode( 0, 0, COMPONENT_ICON_SIZE, 0, LIGHT_ARROW_OPTIONS );
-
-      // now add a lighter arrow pointing upwards but is displaced to the right
-      const upArrow = new ArrowNode( COMPONENT_ICON_SIZE, 0, COMPONENT_ICON_SIZE, -1 * COMPONENT_ICON_SIZE,
-        LIGHT_ARROW_OPTIONS );
-
-      icon.setChildren( [ rightArrow, upArrow, darkArrow ] );
-      return icon;
-    },
-
-    // Creates the icon on the radio button for the Triangle component style
-    createAxisIconComponentStyleIcon: () => {
-      // create a container for the arrow nodes
-      const icon = new Node();
-
-      // the icon has 3 arrows, start with the 'dark' version that points to the right and up
-      // but starts from the sub box
-      const darkArrow = new ArrowNode(
-        AXIS_ICON_SUBBOX_SIZE,
-        -1 * AXIS_ICON_SUBBOX_SIZE,
-        COMPONENT_ICON_SIZE,
-        -1 * COMPONENT_ICON_SIZE,
-        DARK_ARROW_OPTIONS
-      );
-
-      // now add a lighter arrow node that points to the right
-      const rightArrow = new ArrowNode( AXIS_ICON_SUBBOX_SIZE, 0, COMPONENT_ICON_SIZE, 0, LIGHT_ARROW_OPTIONS );
-
-      // now add a lighter arrow pointing upwards but is displaced to the right
-      const upArrow = new ArrowNode( 0, -1 * AXIS_ICON_SUBBOX_SIZE, 0, -1 * COMPONENT_ICON_SIZE, LIGHT_ARROW_OPTIONS );
-
-      // create a dashed line shape
-      const dashedLineShape = new Shape();
-
-      // draw the first 2 lines around the subbox
-      dashedLineShape.moveTo( 0, -1 * AXIS_ICON_SUBBOX_SIZE )
-        .horizontalLineTo( AXIS_ICON_SUBBOX_SIZE )
-        .verticalLineToRelative( AXIS_ICON_SUBBOX_SIZE );
-
-      // draw the lines around the sub icon
-      dashedLineShape.moveTo( 0, -1 * COMPONENT_ICON_SIZE )
-        .horizontalLineTo( COMPONENT_ICON_SIZE )
-        .verticalLineToRelative( COMPONENT_ICON_SIZE );
-
-      // create the shape into a path
-      const dashedLinePath = new Path( dashedLineShape, {
-        stroke: 'black',
-        lineDash: AXIS_ICON_LINE_DASH
+      return new Node( {
+        children: [ arrowVector, arcArrow, line ]
       } );
-
-      icon.setChildren( [ rightArrow, upArrow, darkArrow, dashedLinePath ] );
-      return icon;
     }
-  };
+  }
 
   vectorAddition.register( 'VectorAdditionIconFactory', VectorAdditionIconFactory );
 

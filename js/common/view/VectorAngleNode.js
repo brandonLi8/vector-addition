@@ -4,7 +4,7 @@
  * View for the angle underneath/above the vector.
  * Constructed based on many individually passed parameters about the vector node.
  * Listens to the common models angleVisibleProperty to determine when to display the angle node.
- * Listens to a model vector's angleProperty to get the angle.
+ * Listens to a model vector's angleDegreesProperty to get the angle.
  *
  * @author Brandon Li
  */
@@ -16,10 +16,10 @@ define( require => {
   const ArcArrowNode = require( 'VECTOR_ADDITION/common/view/ArcArrowNode' );
   const Line = require( 'SCENERY/nodes/Line' );
   const Node = require( 'SCENERY/nodes/Node' );
-  const vectorAddition = require( 'VECTOR_ADDITION/vectorAddition' );
-  const Util = require( 'DOT/Util' );
-  const Text = require( 'SCENERY/nodes/Text' );
   const PhetFont = require( 'SCENERY_PHET/PhetFont' );
+  const Text = require( 'SCENERY/nodes/Text' );
+  const Util = require( 'DOT/Util' );
+  const vectorAddition = require( 'VECTOR_ADDITION/vectorAddition' );
 
   // constants
   const BASE_LINE_LENGTH = 55;
@@ -33,11 +33,11 @@ define( require => {
   class VectorAngleNode extends Node {
 
     /**
-     * @param {Vector} vector - the vector model
+     * @param {VectorModel} vectorModel- the vector model
      * @param {BooleanProperty} angleVisibleProperty
      * @param {ModelViewTransform2} modelViewTransform
      */
-    constructor( vector, angleVisibleProperty, modelViewTransform ) {
+    constructor( vectorModel, angleVisibleProperty, modelViewTransform ) {
 
       super();
 
@@ -47,10 +47,10 @@ define( require => {
       } );
 
       // create the arc arrow
-      const arcArrow = new ArcArrowNode( vector.angleProperty.value, ARC_RADIUS, ARC_ARROW_OPTIONS );
+      const arcArrow = new ArcArrowNode( vectorModel.angleDegreesProperty.value, ARC_RADIUS, ARC_ARROW_OPTIONS );
 
       const labelText = new Text( '', {
-        font: new PhetFont({ size: 14, family: 'Times' })
+        font: new PhetFont( { size: 14, family: 'Times' } )
       } );
 
       // add baseline and arc arrow to the parent node
@@ -62,7 +62,6 @@ define( require => {
         labelText.setText( roundedAngleString + '\u00B0' );
         const angleInRad = Util.toRadians( angle );
 
-        labelText.visible = ( angle !== 0 );
         //TODO: get designer feedback and clean up
         if ( angle > 35 ) {
           labelText.setTranslation( ( ARC_RADIUS + 5 ) * Math.cos( angleInRad / 2 ),
@@ -100,17 +99,16 @@ define( require => {
       };
 
       // update the arcArrow and the label based on the angle of the vector
-      vector.angleProperty.link( ( angle ) => {
+      const updateAngle = ( angle ) => {
 
         // update the angle of the arc
         arcArrow.setAngle( angle );
 
         // update value of angle and position of label
         updateLabel( angle );
-      } );
+      };
 
-      // update the radius of the arcArrow based on the magnitude of the vector
-      vector.magnitudeProperty.link( ( magnitude ) => {
+      const updateRadius = ( magnitude ) => {
 
         // get magnitude of vector in view coordinates
         const viewMagnitude = modelViewTransform.modelToViewDeltaX( magnitude );
@@ -129,11 +127,26 @@ define( require => {
         }
 
         baseLine.setX2( arcScaleFactor * BASE_LINE_LENGTH );
-      } );
+      };
+
+      vectorModel.angleDegreesProperty.link( updateAngle );
+
+      // update the radius of the arcArrow based on the magnitude of the vector
+      vectorModel.magnitudeProperty.link( updateRadius );
 
       // update visibility of this node
-      angleVisibleProperty.linkAttribute( this, 'visible' );
+      const toggleVisibilityListener = angleVisibleProperty.linkAttribute( this, 'visible' );
 
+      this.unlinkProperties = () => {
+        vectorModel.angleDegreesProperty.unlink( updateAngle );
+        vectorModel.magnitudeProperty.unlink( updateRadius );
+        angleVisibleProperty.unlink( toggleVisibilityListener );
+      };
+    }
+
+    dispose() {
+      this.unlinkProperties();
+      super.dispose();
     }
   }
 

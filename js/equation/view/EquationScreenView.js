@@ -7,11 +7,10 @@ define( function( require ) {
   'use strict';
 
   // modules
-  const Bounds2 = require( 'DOT/Bounds2' );
-  const CommonScreenView = require( 'VECTOR_ADDITION/common/view/CommonScreenView' );
+  const VectorAdditionScreenView = require( 'VECTOR_ADDITION/common/view/VectorAdditionScreenView' );
   const vectorAddition = require( 'VECTOR_ADDITION/vectorAddition' );
 
-  class EquationScreenView extends CommonScreenView {
+  class EquationScreenView extends VectorAdditionScreenView {
 
     /**
      * @param {EquationModel} equationModel
@@ -19,8 +18,7 @@ define( function( require ) {
      */
     constructor( equationModel, tandem ) {
 
-      const gridViewBounds = new Bounds2( 29, 90, 29 + 500, 90 + 500 );
-      super( gridViewBounds, equationModel, tandem );
+      super( equationModel, tandem );
 
     }
 

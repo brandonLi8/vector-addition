@@ -8,27 +8,16 @@ define( require => {
 
   // modules
   const ArrowNode = require( 'SCENERY_PHET/ArrowNode' );
-  const BooleanProperty = require( 'AXON/BooleanProperty' );
-  const Bounds2 = require( 'DOT/Bounds2' );
-  const CommonScreenView = require( 'VECTOR_ADDITION/common/view/CommonScreenView' );
-  const GridPanel = require( 'VECTOR_ADDITION/common/view/GridPanel' );
-  const HSlider = require( 'SUN/HSlider' );
-  const Image = require( 'SCENERY/nodes/Image' );
-  const NumberProperty = require( 'AXON/NumberProperty' );
+  const VectorAdditionScreenView = require( 'VECTOR_ADDITION/common/view/VectorAdditionScreenView' );
+  const Explore1DVectorCreatorPanels = require( 'VECTOR_ADDITION/explore1D/view/Explore1DVectorCreatorPanels' );
+  const Explore1DGraphControlPanel = require( 'VECTOR_ADDITION/explore1D/view/Explore1DGraphControlPanel' );
   const RadioButtonGroup = require( 'SUN/buttons/RadioButtonGroup' );
-  const Range = require( 'DOT/Range' );
-  const ResetAllButton = require( 'SCENERY_PHET/buttons/ResetAllButton' );
-
   const vectorAddition = require( 'VECTOR_ADDITION/vectorAddition' );
-
-  const VectorOrientation = require( 'VECTOR_ADDITION/common/model/VectorOrientation' );
-
-
-  // images
-  const mockupImage = require( 'image!VECTOR_ADDITION/explore1D_screenshot.png' );
+  const VectorOrientations = require( 'VECTOR_ADDITION/common/model/VectorOrientations' );
+  const VectorAdditionConstants = require( 'VECTOR_ADDITION/common/VectorAdditionConstants' );
 
 
-  class Explore1DScreenView extends CommonScreenView {
+  class Explore1DScreenView extends VectorAdditionScreenView {
 
     /**
      * @param {Explore1DModel} explore1DModel
@@ -36,35 +25,76 @@ define( require => {
      */
     constructor( explore1DModel, tandem ) {
 
-      const gridViewBounds = new Bounds2( 29, 90, 29 + 750, 90 + 500 );
-      super( gridViewBounds, explore1DModel, tandem );
+      super( explore1DModel, tandem );
 
-      // Show the mock-up and a slider to change its transparency
-      const mockupOpacityProperty = new NumberProperty( 0.0 );
-      const image = new Image( mockupImage, { pickable: false, scale: 0.67, top: 0, left: 0 } );
+      // function to the sceneNode based on scene model
+      const getSceneNode = ( sceneModel ) => {
+        for ( let i = 0; i < explore1DModel.scenes.length; i++ ) {
 
-      const screenshotHSlider = new HSlider( mockupOpacityProperty, new Range( 0, 1 ), { top: 0, left: 0 } );
-      mockupOpacityProperty.linkAttribute( image, 'opacity' );
+          if ( this.sceneNodes[ i ].scene === sceneModel ) {
+            return this.sceneNodes[ i ];
+          }
+        }
+      };
 
-      // TODO:: find better way to deal with absence of angle
-      const angleVisibleProperty = new BooleanProperty( false );
+      // convenience variables for the scenes and the scene nodes
+      const horizontalScene = explore1DModel.horizontalScene;
+      const verticalScene = explore1DModel.verticalScene;
 
-      const gridPanel = new GridPanel( explore1DModel.sumVisibleProperty,
+      const horizontalSceneNode = getSceneNode( horizontalScene );
+      const verticalSceneNode = getSceneNode( verticalScene );
+
+
+      // create the creator panel for each scene
+      const explore1DVectorCreatorPanels = new Explore1DVectorCreatorPanels(
+        horizontalScene.vectorSet, //TODO: find a better way than index 0, we can index 0 right now since there is only 1 vector set per scene for 1d
+        horizontalScene.graph.modelViewTransformProperty,
+        verticalScene.vectorSet,
+        verticalScene.graph.modelViewTransformProperty );
+
+      // create the vector panels
+      const horizontalVectorCreatorPanel = explore1DVectorCreatorPanels.horizontalVectorCreatorPanel;
+      const verticalVectorCreatorPanel = explore1DVectorCreatorPanels.verticalVectorCreatorPanel;
+
+
+      explore1DModel.vectorOrientationProperty.link( ( vectorOrientation ) => {
+        switch( vectorOrientation ) {
+          case VectorOrientations.HORIZONTAL:
+            verticalSceneNode.visible = false;
+            verticalVectorCreatorPanel.visible = false;
+            horizontalSceneNode.visible = true;
+            horizontalVectorCreatorPanel.visible = true;
+            break;
+          case VectorOrientations.VERTICAL:
+            verticalSceneNode.visible = true;
+            verticalVectorCreatorPanel.visible = true;
+            horizontalVectorCreatorPanel.visible = false;
+            horizontalSceneNode.visible = false;
+            break;
+          case VectorOrientations.TWO_DIMENSIONAL:
+            throw new Error( `Explore1D does not support vector orientation: ${vectorOrientation}` );
+          default:
+            console.log( vectorOrientation );
+            throw new Error( `Vector orientation not handled: ${vectorOrientation}` );
+        }
+      } );
+
+      const explore1DGraphControlPanel = new Explore1DGraphControlPanel(
+        explore1DModel.sumVisibleProperty,
         explore1DModel.valuesVisibleProperty,
-        angleVisibleProperty,
         explore1DModel.gridVisibleProperty,
-        explore1DModel.componentStyleProperty, {
-          right: this.layoutBounds.maxX - 4,
-          top: 10
+        explore1DModel.vectorType, {
+          right: this.layoutBounds.right - VectorAdditionConstants.SCREEN_VIEW_X_MARGIN,
+          top: this.layoutBounds.top + VectorAdditionConstants.SCREEN_VIEW_Y_MARGIN
         } );
 
       const ArrowNodeOptions = { fill: 'black', doubleHead: true, tailWidth: 3, headWidth: 8, headHeight: 10 };
       // Scene radio buttons
       const sceneRadioButtonContent = [ {
-        value: VectorOrientation.HORIZONTAL,
+        value: VectorOrientations.HORIZONTAL,
         node: new ArrowNode( 0, 0, 40, 0, ArrowNodeOptions )
       }, {
-        value: VectorOrientation.VERTICAL,
+        value: VectorOrientations.VERTICAL,
         node: new ArrowNode( 0, 0, 0, 40, ArrowNodeOptions )
       } ];
 
@@ -73,27 +103,15 @@ define( require => {
         selectedStroke: '#419ac9',
         selectedLineWidth: 2,
         right: this.layoutBounds.maxX - 4,
-        top: gridPanel.bottom + 10,
+        top: explore1DGraphControlPanel.bottom + 10,
         orientation: 'horizontal'
       } );
 
-
-      this.addChild( gridPanel );
-
+      this.addChild( horizontalVectorCreatorPanel );
+      this.addChild( verticalVectorCreatorPanel );
+      this.addChild( explore1DGraphControlPanel );
       this.addChild( sceneRadioButtonGroup );
-      this.addChild( image );
-      this.addChild( screenshotHSlider );
 
-      const resetAllButton = new ResetAllButton( {
-        listener: () => {
-          explore1DModel.reset();
-          angleVisibleProperty.reset();
-        },
-        right: this.layoutBounds.maxX - 10,
-        bottom: this.layoutBounds.maxY - 10,
-        tandem: tandem.createTandem( 'resetAllButton' )
-      } );
-      this.addChild( resetAllButton );
     }
   }
 

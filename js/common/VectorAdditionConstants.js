@@ -10,62 +10,79 @@ define( function( require ) {
   'use strict';
 
   // modules
-  const AlignGroup = require( 'SCENERY/nodes/AlignGroup' );
   const PhetFont = require( 'SCENERY_PHET/PhetFont' );
   const vectorAddition = require( 'VECTOR_ADDITION/vectorAddition' );
+  const VectorAdditionColors = require( 'VECTOR_ADDITION/common/VectorAdditionColors' );
+  const VectorTypes = require( 'VECTOR_ADDITION/common/model/VectorTypes' );
+  const Dimension2 = require( 'DOT/Dimension2' );
+  const Vector2 = require( 'DOT/Vector2' );
 
-  // constants
+  //----------------------------------------------------------------------------------------
+  // for all panel-like containers
   const PANEL_CORNER_RADIUS = 5;
-  const PANEL_X_MARGIN = 12; // horizontal panel margin
-  const PANEL_BACKGROUND_COLOR = 'rgb( 230, 230, 230 )';
-  const PANEL_Y_MARGIN = 12; // vertical panel margin
+  const PANEL_X_MARGIN = 12;
+  const PANEL_Y_MARGIN = 12;
 
   const VectorAdditionConstants = {
 
-    // Some
-    BACKGROUND_COLOR: 'rgb( 255, 250, 227)',
-    ORIGIN_DOT_COLOR: 'rgb( 25, 253, 56 )',
+    //----------------------------------------------------------------------------------------
+    // Margins for all ScreenView instances
+    SCREEN_VIEW_X_MARGIN: 6,
+    SCREEN_VIEW_Y_MARGIN: 6,
 
-    BLUE_VECTOR_COLOR: 'rgb( 20, 122, 240 )',
-    BLUE_COMPONENT_COLOR: 'rgb( 75, 173, 240 )',
-    RED_VECTOR_COLOR: 'rgb( 254, 53, 46 )',
-    RED_COMPONENT_COLOR: 'rgb( 255, 113, 96 )',
-
-    // Fonts
-    PANEL_FONT: new PhetFont( 16 ),
-
-    TITLE_MAX_WIDTH: 140,
-    TICK_LABEL_MAX_WIDTH: 50,
-
-    RIGHT_CONTENT_WIDTH: 170,
-
-    // Spacing between panels/boxes/sides of layout bounds
-    PANEL_PADDING: 10,
-
-    // Corner radius of our normal panels
-    PANEL_CORNER_RADIUS: PANEL_CORNER_RADIUS,
-
-    // Options for all top-level Panels
+    //----------------------------------------------------------------------------------------
+    // Defaults for all Panel instances
     PANEL_OPTIONS: {
+      align: 'left',
       cornerRadius: PANEL_CORNER_RADIUS,
-      fill: PANEL_BACKGROUND_COLOR,
       xMargin: PANEL_X_MARGIN,
-      yMargin: PANEL_Y_MARGIN
+      yMargin: PANEL_Y_MARGIN,
+      fill: VectorAdditionColors.PANEL_BACKGROUND,
+      stroke: VectorAdditionColors.PANEL_STROKE_COLOR
+    },
+    PANEL_FONT: new PhetFont( 15 ),
+    PANEL_WIDTH: 130,
+
+    //----------------------------------------------------------------------------------------
+    // Defaults for all check boxes
+    CHECKBOX_OPTIONS: {
+      boxWidth: 17,
+      spacing: 5
     },
 
-    // Options for Vector Boxes
-    VECTOR_BOX_OPTIONS: {
-      cornerRadius: PANEL_CORNER_RADIUS,
-      fill: 'white',
-      contentXMargin: PANEL_X_MARGIN,
-      contentYMargin: PANEL_Y_MARGIN
+    //----------------------------------------------------------------------------------------
+    // Vector Creator Panels
+    VECTOR_CREATOR_PANEL_OPTIONS: {
+      fill: VectorAdditionColors.VECTOR_CREATOR_BACKGROUND
     },
 
-    // Spacing between checkboxes, radio buttons, or other items of that nature
-    CHECK_RADIO_SPACING: 7,
+    //----------------------------------------------------------------------------------------
+    // Defaults for graph location
+    GRAPH_DIMENSION: new Dimension2( 60, 40 ),
+    GRAPH_UPPER_LEFT_COORDINATE: new Vector2( -5, 35 ),
 
-    // Alignment groups for the left and right panels/boxes
-    LEFT_CONTENT_ALIGN_GROUP: new AlignGroup( { matchVertical: false } )
+    // location of the upper left of the graph in view coordinates
+    GRAPH_UPPER_LEFT_LOCATION: new Vector2( 29, 90 ),
+
+    // scale conversion factor from model to view coordinates
+    MODEL_TO_VIEW_SCALE_FACTOR: 12.5,
+
+    //----------------------------------------------------------------------------------------
+    // Defaults for all vector arrow nodes
+    VECTOR_OPTIONS: {
+      lineWidth: 0,
+      tailWidth: 5,
+      headWidth: 9,
+      headHeight: 6,
+      cursor: 'move'
+    },
+
+
+    // Default vector type for Explore1D, Explore2D and Equation.
+    VECTOR_TYPE: VectorTypes.ONE,
+
+    // side length of the arrow when initially dropped onto the graph.
+    INITIAL_ARROW_SIDE_LENGTH: 5
 
   };
 

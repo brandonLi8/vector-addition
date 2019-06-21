@@ -11,47 +11,53 @@ define( require => {
 
   // modules
   const ArrowNode = require( 'SCENERY_PHET/ArrowNode' );
-  const Bounds2 = require( 'DOT/Bounds2' );
-  const Circle = require( 'SCENERY/nodes/Circle' );
+  const Color = require( 'SCENERY/util/Color' );
   const DragListener = require( 'SCENERY/listeners/DragListener' );
   const MathSymbolFont = require( 'SCENERY_PHET/MathSymbolFont' );
-  const ModelViewTransform2 = require( 'PHETCOMMON/view/ModelViewTransform2' );
   const Node = require( 'SCENERY/nodes/Node' );
   const Path = require( 'SCENERY/nodes/Path' );
   const PhetFont = require( 'SCENERY_PHET/PhetFont' );
   const Property = require( 'AXON/Property' );
   const Rectangle = require( 'SCENERY/nodes/Rectangle' );
+  const ShadedSphereNode = require( 'SCENERY_PHET/ShadedSphereNode' );
   const Shape = require( 'KITE/Shape' );
   const Text = require( 'SCENERY/nodes/Text' );
   const Vector2 = require( 'DOT/Vector2' );
   const Vector2Property = require( 'DOT/Vector2Property' );
   const vectorAddition = require( 'VECTOR_ADDITION/vectorAddition' );
-  const VectorOrientation = require( 'VECTOR_ADDITION/common/model/VectorOrientation' );
+  const VectorAdditionColors = require( 'VECTOR_ADDITION/common/VectorAdditionColors' );
+  const VectorOrientations = require( 'VECTOR_ADDITION/common/model/VectorOrientations' );
 
   //----------------------------------------------------------------------------------------
   // constants
   //----------------------------------------------------------------------------------------
 
   // grid
-  const GRID_BACKGROUND_OPTIONS = {
-    fill: 'white',
-    stroke: 'rgb( 192, 192, 192)',
-    lineWidth: 1
+  const GRAPH_OPTIONS = {
+    fill: VectorAdditionColors.GRAPH_BACKGROUND
   };
   const MAJOR_GRID_LINES_OPTIONS = {
     lineWidth: 2,
-    stroke: 'rgb( 220, 220, 220 )'
+    stroke: VectorAdditionColors.GRAPH_MAJOR_LINE_COLOR
   };
   const MINOR_GRID_LINES_OPTIONS = {
     lineWidth: 1,
-    stroke: 'rgb( 230, 230, 230 )'
+    stroke: VectorAdditionColors.GRAPH_MINOR_LINE_COLOR
   };
   const MAJOR_TICK_SPACING = 5;
 
   // origin circle
+  const ORIGIN_CIRCLE_COLOR = Color.toColor( VectorAdditionColors.ORIGIN_DOT_COLOR );
+  const ORIGIN_CIRCLE_RADIUS = 15;
   const ORIGIN_CIRCLE_OPTIONS = {
-    stroke: 'black',
-    fill: 'yellow'
+    renderer: 'canvas',
+    cursor: 'move',
+    fill: ORIGIN_CIRCLE_COLOR.withAlpha( 0.15 ),
+    mainColor: ORIGIN_CIRCLE_COLOR,
+    highlightColor: Color.WHITE,
+    shadowColor: ORIGIN_CIRCLE_COLOR.darkerColor(),
+    lineWidth: 1,
+    stroke: ORIGIN_CIRCLE_COLOR.darkerColor()
   };
   // in model coordinates
   const DRAG_PADDING_CONSTRAINT = 5;
@@ -75,7 +81,7 @@ define( require => {
   const TICK_LENGTH = 1;
   const TICKS_OPTIONS = {
     lineWidth: 1,
-    stroke: 'black'
+    stroke: VectorAdditionColors.TICKS_COLOR
   };
   const ORIGIN_TEXT_OPTIONS = {
     font: new PhetFont( 16 ),
@@ -89,64 +95,76 @@ define( require => {
   // strings
   const xString = require( 'string!VECTOR_ADDITION/x' );
   const yString = require( 'string!VECTOR_ADDITION/y' );
+  const number0String = '0';
 
   class GraphNode extends Node {
     /**
      * @constructor
      *
-     * @param {CommonModel} commonModel - the shared model for all screens
-     * @param {Property.<ModelViewTransform2>} modelViewTransformProperty - property that holds the coordinate transform
-     * between model coordinates and view coordinates
+     * @param {Graph} graph - the model graph for the node
+     * @param {BooleanProperty} gridVisibilityProperty
      */
-    constructor( commonModel, modelViewTransformProperty ) {
+    constructor( graph, gridVisibilityProperty ) {
 
-      const modelViewTransform = modelViewTransformProperty.value;
-
-      // Transform the model grid mounds into the view coordinates.
+      // Transform the model grid bounds into the view coordinates.
       // This will stay constant as the background rectangle won't move.
-      const gridBounds = modelViewTransform.modelToViewBounds( commonModel.gridModelBounds );
+      const graphBounds = graph.modelViewTransformProperty.value.modelToViewBounds( graph.graphModelBounds );
 
       // Create a rectangle as the background of the graph.
-      const backgroundRectangle = new Rectangle( gridBounds, GRID_BACKGROUND_OPTIONS );
+      const backgroundRectangle = new Rectangle( graphBounds, GRAPH_OPTIONS );
 
-      const xAxisNode = new XAxisNode( commonModel, modelViewTransformProperty );
-      const yAxisNode = new YAxisNode( commonModel, modelViewTransformProperty );
+      const xAxisNode = new XAxisNode( graph );
+      const yAxisNode = new YAxisNode( graph );
+      const originCircle = new OriginCircle( graph );
+
+      const gridLinesNode = new GridLinesNode( graph );
+
+      // present for the lifetime of the simulation
+      gridVisibilityProperty.linkAttribute( gridLinesNode, 'visible' );
 
       super( {
         children: [
           backgroundRectangle,
-          new GridLinesNode( commonModel, modelViewTransformProperty ),
+          gridLinesNode,
           xAxisNode,
           yAxisNode,
-          new OriginCircle( commonModel, modelViewTransform, modelViewTransformProperty )
+          originCircle
         ]
       } );
 
+      // @private
+      this.originCircle = originCircle;
+
+      const vectorOrientation = graph.orientation;
+
       // toggle visibility based on different vector orientations
-      commonModel.vectorOrientationProperty.link( ( vectorOrientation ) => {
-        switch( vectorOrientation ) {
-          case VectorOrientation.HORIZONTAL:
-            xAxisNode.visible = true;
-            yAxisNode.visible = false;
-            xAxisNode.setOriginLabelVisibility( true );
-            yAxisNode.setOriginLabelVisibility( true );
-            break;
-          case VectorOrientation.VERTICAL:
-            xAxisNode.visible = false;
-            yAxisNode.visible = true;
-            xAxisNode.setOriginLabelVisibility( true );
-            yAxisNode.setOriginLabelVisibility( true );
-            break;
-          case VectorOrientation.ALL:
-            xAxisNode.visible = true;
-            yAxisNode.visible = true;
-            xAxisNode.setOriginLabelVisibility( false );
-            yAxisNode.setOriginLabelVisibility( false );
-            break;
-          default:
-            throw new Error( 'Vector orientation not handled', vectorOrientation );
-        }
-      } );
+      switch( vectorOrientation ) {
+        case VectorOrientations.HORIZONTAL:
+          xAxisNode.visible = true;
+          yAxisNode.visible = false;
+          xAxisNode.setOriginLabelVisibility( true );
+          yAxisNode.setOriginLabelVisibility( true );
+          break;
+        case VectorOrientations.VERTICAL:
+          xAxisNode.visible = false;
+          yAxisNode.visible = true;
+          xAxisNode.setOriginLabelVisibility( true );
+          yAxisNode.setOriginLabelVisibility( true );
+          break;
+        case VectorOrientations.TWO_DIMENSIONAL:
+          xAxisNode.visible = true;
+          yAxisNode.visible = true;
+          xAxisNode.setOriginLabelVisibility( false );
+          yAxisNode.setOriginLabelVisibility( false );
+          break;
+        default:
+          throw new Error( `Vector orientation not handled: ${vectorOrientation}` );
+      }
+    }
+
+    // @public
+    reset() {
+      this.originCircle.reset();
     }
   }
 
@@ -154,16 +172,14 @@ define( require => {
   class GridLinesNode extends Node {
     /**
      * @constructor
-     * @param {CommonModel} commonModel - the shared model for all screens
-     * @param {Property.<ModelViewTransform2>} modelViewTransformProperty - property that holds the coordinate transform
-     * between model coordinates and view coordinates
+     * @param {Graph} graph - the model for the graph
      */
-    constructor( commonModel, modelViewTransformProperty ) {
+    constructor( graph ) {
 
       super();
 
-      // @private {CommonModel}
-      this.model = commonModel;
+      // @private {graph}
+      this.graph = graph;
 
       // @private {Path} the path for the majorGridLines. Initialize it with and an empty shape and set a shape one the
       // modelViewTransformProperty link.
@@ -173,15 +189,13 @@ define( require => {
       // modelViewTransformProperty link.
       this.minorGridLinesPath = new Path( new Shape(), MINOR_GRID_LINES_OPTIONS );
 
-
       // Update the grid when the modelViewTransform changes (triggered when the origin is moved)
-      modelViewTransformProperty.link( ( modelViewTransform ) => {
+      // link present for the lifetime of the simulation
+      graph.modelViewTransformProperty.link( ( modelViewTransform ) => {
         this.updateGrid( modelViewTransform );
       } );
 
-
       this.setChildren( [ this.majorGridLinesPath, this.minorGridLinesPath ] );
-
 
     }
 
@@ -189,7 +203,7 @@ define( require => {
      * The modelViewTransform is changed when the origin is dragged. This method updates the grid based on a
      * modelViewTransform and is called when when a new modelViewTransform is created.
      *
-     * @param {Property.<ModelViewTransform2>} modelViewTransformProperty - property that holds the coordinate transform
+     * @param {ModelViewTransform2} modelViewTransform - the coordinate transform
      * between model coordinates and view coordinates
      *
      * @private
@@ -197,45 +211,45 @@ define( require => {
     updateGrid( modelViewTransform ) {
 
       // convenience variables that get the grid bounds that are updated when the origin is dragged in the model
-      const gridMinX = this.model.gridModelBounds.minX;
-      const gridMaxX = this.model.gridModelBounds.maxX;
-      const gridMinY = this.model.gridModelBounds.minY;
-      const gridMaxY = this.model.gridModelBounds.maxY;
+      const graphMinX = this.graph.graphModelBounds.minX;
+      const graphMaxX = this.graph.graphModelBounds.maxX;
+      const graphMinY = this.graph.graphModelBounds.minY;
+      const graphMaxY = this.graph.graphModelBounds.maxY;
 
       // Create two shapes for the different grid lines.
       const majorGridLinesShape = new Shape();
       const minorGridLinesShape = new Shape();
 
       // Create the Horizontal Grid Lines
-      // Start from the Ceil of the gridMinY to the floor of the gridMaxY because the origin may be dragged so that the
-      // minY and maxY are decimal points. With the ceil/floor of this also guarentee that we draw 
+      // Start from the Ceil of the graphMinY to the floor of the graphMaxY because the origin may be dragged so that the
+      // minY and maxY are decimal points. With the ceil/floor of this also guarantees that we draw
       // all the lines visible in the window
-      for ( let j = Math.ceil( gridMinY ); j <= Math.floor( gridMaxY ); j++ ) {
+      for ( let j = Math.ceil( graphMinY ); j <= Math.floor( graphMaxY ); j++ ) {
 
         // increment in model coordinates (1 unit)
         const isMajor = j % ( MAJOR_TICK_SPACING ) === 0;
 
         if ( isMajor ) {
-          majorGridLinesShape.moveTo( gridMinX, j ).horizontalLineTo( gridMaxX );
+          majorGridLinesShape.moveTo( graphMinX, j ).horizontalLineTo( graphMaxX );
         }
         else {
-          minorGridLinesShape.moveTo( gridMinX, j ).horizontalLineTo( gridMaxX );
+          minorGridLinesShape.moveTo( graphMinX, j ).horizontalLineTo( graphMaxX );
         }
       }
 
       // Create the Horizontal Grid Lines
-      // Start from the Ceil of the gridMinX to the floor of the gridMaxX because the origin maX be dragged so that the
-      // minX and maxX are decimal points. With the ceil/floor of this also guarentee that we draw 
+      // Start from the Ceil of the graphMinX to the floor of the graphMaxX because the origin maX be dragged so that the
+      // minX and maxX are decimal points. With the ceil/floor of this also guarantees that we draw
       // all the lines visible in the window
-      for ( let i = Math.ceil( gridMinX ); i <= Math.floor( gridMaxX ); i++ ) {
+      for ( let i = Math.ceil( graphMinX ); i <= Math.floor( graphMaxX ); i++ ) {
 
         // increment in model coordinates (1 unit)
         const isMajor = i % ( MAJOR_TICK_SPACING ) === 0;
         if ( isMajor ) {
-          majorGridLinesShape.moveTo( i, gridMinY ).verticalLineTo( gridMaxY );
+          majorGridLinesShape.moveTo( i, graphMinY ).verticalLineTo( graphMaxY );
         }
         else {
-          minorGridLinesShape.moveTo( i, gridMinY ).verticalLineTo( gridMaxY );
+          minorGridLinesShape.moveTo( i, graphMinY ).verticalLineTo( graphMaxY );
         }
       }
 
@@ -247,240 +261,296 @@ define( require => {
   }
 
   //----------------------------------------------------------------------------------------
-  class OriginCircle extends Circle {
+  class OriginCircle extends ShadedSphereNode {
     /**
      * @constructor
      *
-     * @param {CommonModel} commonModel - the shared model for all screens
-     * @param {ModelViewTransform2} modelViewTransform - the initial coordinate transform between model coordinates and
-     * view coordinates. Only needed once since the origin is always at (0, 0).
+     * @param {Graph} graph - the model for the graph
      *
-     * TODO: set the modelViewTransformProperty in the model and remove the 3rd argument
      */
-    constructor( commonModel, modelViewTransform, modelViewTransformProperty ) {
+    constructor( graph ) {
 
-      // convenience variable at the origin in terms of the view
+      // convenience variable
+      const modelViewTransform = graph.modelViewTransformProperty.value;
+
+      // the origin in terms of the view;
       const origin = modelViewTransform.modelToViewPosition( Vector2.ZERO );
 
-      super( 7, _.extend( { center: origin }, ORIGIN_CIRCLE_OPTIONS ) );
-
+      super( ORIGIN_CIRCLE_RADIUS, _.extend( { center: origin }, ORIGIN_CIRCLE_OPTIONS ) );
 
       // Create a dragBounds to constrain the drag
-      const restrictedGridViewBounds = modelViewTransform.modelToViewBounds(
-        commonModel.gridModelBounds.eroded( DRAG_PADDING_CONSTRAINT )
+      const restrictedGraphViewBounds = modelViewTransform.modelToViewBounds(
+        graph.graphModelBounds.eroded( DRAG_PADDING_CONSTRAINT )
       );
 
-      // Create a property of to track the view's origin in view coordinates
-      const originLocationProperty = new Vector2Property( origin );
+      // @private Create a property of to track the view's origin in view coordinates
+      this.originLocationProperty = new Vector2Property( origin );
 
       this.addInputListener( new DragListener( {
-        locationProperty: originLocationProperty,
-        translateNode: true,
-        dragBoundsProperty: new Property( restrictedGridViewBounds )
+        locationProperty: this.originLocationProperty,
+        translateNode: false,
+        dragBoundsProperty: new Property( restrictedGraphViewBounds )
       } ) );
 
+      // link present for the lifetime of the simulation
+      this.originLocationProperty.link( ( originLocation ) => {
 
-      originLocationProperty.link( ( originLocation ) => {
+        // TODO: abstract snap to grid logic in the model
+        const originSnapLocation = modelViewTransform.viewToModelPosition( originLocation ).roundedSymmetric();
 
-        // Update the upperLeftLocation model coordinates
-        commonModel.upperLeftLocationProperty.set(
-          commonModel.upperLeftLocationProperty.initialValue.minus( modelViewTransform.viewToModelPosition( originLocation ) )
-        );
+        // Update the upperLeftPosition model coordinates
+        graph.upperLeftPositionProperty.value = graph.upperLeftPositionProperty.initialValue.minus( originSnapLocation );
 
-        // TODO: set the modelViewTransformProperty in the model and remove the 3rd argument
-        modelViewTransformProperty.set(
-          new ModelViewTransform2.createRectangleInvertedYMapping(
-            commonModel.gridModelBounds,
-            new Bounds2( 29, 90, 29 + 750, 90 + 500 )
-          )
-        );
+        this.center = modelViewTransform.modelToViewPosition( originSnapLocation );
+
       } );
+    }
 
+    // @public
+    reset() {
+      this.originLocationProperty.reset();
     }
   }
 
   //----------------------------------------------------------------------------------------
-  class XAxisNode extends Node {
+  class AxisNode extends Node {
     /**
+     * @abstract
+     * Abstract class that is used as a general axis.
+     * This is extended by xAxisNode and yAxisNode which must provide the abstract methods.
      * @constructor
      *
-     * @param {CommonModel} commonModel - the shared model for all screens
-     * @param {Property.<ModelViewTransform2>} modelViewTransformProperty - property that holds the coordinate transform
+     * @param {Graph} graph - the model for the graph
+     * @param {string} axisLabelText - the label for the axis
      */
-    constructor( commonModel, modelViewTransformProperty ) {
+    constructor( graph, axisLabelText ) {
 
       super();
 
-      // Create an double arrow that represents the axis that is of length 0 but updated when the modelViewTransform is updated.
-      const axisArrow = new ArrowNode( 0, 0, 0, 0, ARROW_OPTIONS );
+      // @public {ArrowNode} axisArrow - Create an double arrow that represents the axis that is of length 0 but updated
+      // when the modelViewTransform is updated.
+      this.axisArrow = new ArrowNode( 0, 0, 0, 0, ARROW_OPTIONS );
 
-      // Create a label right side of the axis that labels the axis. This will be moved when the modelViewTransform is updated.
-      const axisLabel = new Text( xString, AXIS_LABEL_OPTIONS );
+      // @public {Text} axisLabel - Create a label right side of the axis that labels the axis. This will be moved when
+      // the modelViewTransform is updated.
+      this.axisLabel = new Text( axisLabelText, AXIS_LABEL_OPTIONS );
 
       // Create a path that represents the ticks along the axis with an empty shape which will be updated when the 
       // modelViewTransform is updated.
-      const xAxisTicksPath = new Path( new Shape(), TICKS_OPTIONS );
+      const axisTicksPath = new Path( new Shape(), TICKS_OPTIONS );
 
-      // @private Create a label for the origin that weill be moved when the modelViewTransform is updated.
-      this.xOriginText = new Text( '0', ORIGIN_TEXT_OPTIONS );
+      // @public {Text} originText - create a label for the origin that will be moved when the modelViewTransform is updated.
+      this.originText = new Text( number0String, ORIGIN_TEXT_OPTIONS );
 
+      // Observe changes to the modelViewTransform and update the axis when changed.
+      graph.modelViewTransformProperty.link( ( modelViewTransform ) => {
 
-      modelViewTransformProperty.link( ( modelViewTransform ) => {
-
-        // convenience variables for the position of the origin in view coordinates
-        const gridViewOrigin = modelViewTransform.modelToViewPosition( Vector2.ZERO );
-
+        // convenience variable for the position of the origin in view coordinates
+        const graphViewOrigin = modelViewTransform.modelToViewPosition( Vector2.ZERO );
 
         // convenience variables for the grid bounds in view/model coordinates
-        const gridModelBounds = commonModel.gridModelBounds;
-        const gridViewBounds = modelViewTransform.modelToViewBounds( gridModelBounds );
+        const graphModelBounds = graph.graphModelBounds;
+        const graphViewBounds = modelViewTransform.modelToViewBounds( graphModelBounds );
 
         // Update the axis double arrow
-        axisArrow.setTailAndTip(
-          gridViewBounds.minX - LINE_EXTENT_X,
-          gridViewOrigin.y,
-          gridViewBounds.maxX + LINE_EXTENT_X,
-          gridViewOrigin.y
-        );
+        // updateAxisArrow is an ABSTRACT method and MUST be provided
+        this.updateAxisArrow( graphViewBounds, graphViewOrigin );
 
-        // Update the label that is to the left of the axis
-        axisLabel.left = axisArrow.right + 10;
-        axisLabel.centerY = gridViewOrigin.y;
+        // Update the labels of the axis
+        // Also a abstract method
+        this.updateAxisLabels( graphViewOrigin );
 
-        // create ticks along the axis
-        const xAxisTicksShape = new Shape();
-
-        // x-axis ticks, add them on every major ticks
-        // Start from the Ceil of the gridMinX to the floor of the gridMaxX because the origin maX be dragged so that the
-        // minX and maxX are decimal points. With the ceil/floor of this also guarentee that we draw 
-        // all the ticks visible in the window.
-        for ( let i = Math.ceil( gridModelBounds.minX ); i <= Math.floor( gridModelBounds.maxX ); i++ ) {
-          // increment by model coordinates (1 unit)
-          const isMajor = i % ( MAJOR_TICK_SPACING ) === 0;
-
-          // the origin has a longer tick
-          if ( i === 0 ) {
-            xAxisTicksShape.moveTo( i, -TICK_LENGTH ).verticalLineTo( TICK_LENGTH );
-          }
-          else if ( isMajor ) {
-            xAxisTicksShape.moveTo( i, -TICK_LENGTH / 2 ).verticalLineTo( TICK_LENGTH / 2 );
-          }
-        }
+        // get the shape of the ticks along the axis (abstract) in view coordinates
+        const newTicksShape = this.getUpdatedTicksShape( graphModelBounds, modelViewTransform );
 
         // Update the axis path
-        xAxisTicksPath.setShape( modelViewTransform.modelToViewShape( xAxisTicksShape ) );
-
-        // Update the origin label
-        this.xOriginText.centerX = gridViewOrigin.x;
-        this.xOriginText.top = gridViewOrigin.y + 20;
+        axisTicksPath.setShape( newTicksShape );
 
       } );
 
-      this.setChildren( [ axisArrow, axisLabel, xAxisTicksPath, this.xOriginText ] );
-
+      this.setChildren( [ this.axisArrow, this.axisLabel, axisTicksPath, this.originText ] );
     }
 
     /**
-     * Set the visiblity of the origin label
-     * @param {boolean} visibile
+     * Updates the location of the arrow
+     * @abstract
+     * @param {Bounds2} graphViewBounds - the bounds of the grid in view coordinates
+     * @param {Vector2} graphViewOrigin - the origin location in view coordinates
+     */
+    updateAxisArrow( graphViewBounds, graphViewOrigin ) {}
+
+    /**
+     * Updates the location of the labels (origin label and axis label)
+     * @abstract
+     * @param {Vector2} graphViewOrigin - the origin location in view coordinates
+     */
+    updateAxisLabels( graphViewOrigin ) {}
+
+    /**
+     * Gets a new shape for the updated axis ticks
+     * @abstract
+     * @param {Bounds2} graphModelBounds - the bounds of the grid in model coordinates
+     * @param {ModelViewTransform2} modelViewTransform - the new modelViewTransform
+     * @returns {Shape} the new axis ticks shape in View coordinates
+     */
+    getUpdatedTicksShape( graphModelBounds, modelViewTransform ) {}
+
+    /**
+     * Set the visibility of the origin label
+     * @param {boolean} visible
      * @public
      */
     setOriginLabelVisibility( visible ) {
-      this.xOriginText.visible = visible;
+      this.originText.visible = visible;
     }
   }
 
   //----------------------------------------------------------------------------------------
-  class YAxisNode extends Node {
+  class XAxisNode extends AxisNode {
     /**
      * @constructor
      *
-     * @param {CommonModel} commonModel - the shared model for all screens
-     * @param {Property.<ModelViewTransform2>} modelViewTransformProperty - property that holds the coordinate transform
+     * @param {Graph} graph - the model for the graph
      */
-    constructor( commonModel, modelViewTransformProperty ) {
-
-      super();
-
-      // Create an double arrow that represents the axis that is of length 0 but updated when the modelViewTransform is updated.
-      const axisArrow = new ArrowNode( 0, 0, 0, 0, ARROW_OPTIONS );
-
-      // Create a label right side of the axis that labels the axis. This will be moved when the modelViewTransform is updated.
-      const axisLabel = new Text( yString, AXIS_LABEL_OPTIONS );
-
-      // Create a path that represents the ticks along the axis with an empty shape which will be updated when the 
-      // modelViewTransform is updated.
-      const yAxisTicksPath = new Path( new Shape(), TICKS_OPTIONS );
-
-      // @private Create a label for the origin that weill be moved when the modelViewTransform is updated.
-      this.yOriginText = new Text( '0', ORIGIN_TEXT_OPTIONS );
-
-
-      modelViewTransformProperty.link( ( modelViewTransform ) => {
-
-        // convenience variables for the position of the origin in view coordinates
-        const gridViewOrigin = modelViewTransform.modelToViewPosition( Vector2.ZERO );
-
-
-        // convenience variables for the grid bounds in view/model coordinates
-        const gridModelBounds = commonModel.gridModelBounds;
-        const gridViewBounds = modelViewTransform.modelToViewBounds( gridModelBounds );
-
-        // Update the axis double arrow
-        axisArrow.setTailAndTip(
-          gridViewOrigin.x,
-          gridViewBounds.minY - LINE_EXTENT_Y,
-          gridViewOrigin.x,
-          gridViewBounds.maxY + LINE_EXTENT_Y
-        );
-
-        // Update the label that is to the left of the axis
-        axisLabel.centerX = gridViewOrigin.x;
-        axisLabel.centerY = axisArrow.top - 10;
-
-        // create ticks along the axis
-        const yAxisTicksShape = new Shape();
-
-        // x-axis ticks, add them on every major ticks
-        // Start from the Ceil of the gridMinX to the floor of the gridMaxX because the origin maX be dragged so that the
-        // minX and maxX are decimal points. With the ceil/floor of this also guarentee that we draw 
-        // all the ticks visible in the window.
-        for ( let i = Math.ceil( gridModelBounds.minY ); i <= Math.floor( gridModelBounds.maxY ); i++ ) {
-          // increment by model coordinates (1 unit)
-          const isMajor = i % ( MAJOR_TICK_SPACING ) === 0;
-
-          // the origin has a longer tick
-          if ( i === 0 ) {
-            yAxisTicksShape.moveTo( -TICK_LENGTH, i ).horizontalLineTo( TICK_LENGTH );
-          }
-          else if ( isMajor ) {
-            yAxisTicksShape.moveTo( -TICK_LENGTH / 2, i ).horizontalLineTo( TICK_LENGTH / 2 );
-          }
-        }
-
-        // Update the axis path
-        yAxisTicksPath.setShape( modelViewTransform.modelToViewShape( yAxisTicksShape ) );
-
-        // Update the origin label
-        this.yOriginText.centerY = gridViewOrigin.y;
-        this.yOriginText.right = gridViewOrigin.x - 20;
-
-      } );
-
-      this.setChildren( [ axisArrow, axisLabel, yAxisTicksPath, this.yOriginText ] );
-
+    constructor( graph ) {
+      super( graph, xString );
     }
 
     /**
-     * Set the visiblity of the origin label
-     * @param {boolean} visibile
-     * @public
+     * Updates the location of the arrow
+     * @abstract
+     * @param {Bounds2} graphViewBounds - the bounds of the grid in view coordinates
+     * @param {Vector2} graphViewOrigin - the origin location in view coordinates
      */
-    setOriginLabelVisibility( visible ) {
-      this.yOriginText.visible = visible;
+    updateAxisArrow( graphViewBounds, graphViewOrigin ) {
+      this.axisArrow.setTailAndTip(
+        graphViewBounds.minX - LINE_EXTENT_X,
+        graphViewOrigin.y,
+        graphViewBounds.maxX + LINE_EXTENT_X,
+        graphViewOrigin.y
+      );
+    }
+
+    /**
+     * Updates the location of the labels (origin label and axis label)
+     * @abstract
+     * @param {Vector2} graphViewOrigin - the origin location in view coordinates
+     */
+    updateAxisLabels( graphViewOrigin ) {
+      // Update the label that is to the left of the axis
+      this.axisLabel.left = this.axisArrow.right + 10;
+      this.axisLabel.centerY = graphViewOrigin.y;
+
+      // Update the origin label
+      this.originText.centerX = graphViewOrigin.x;
+      this.originText.top = graphViewOrigin.y + 20;
+    }
+
+    /**
+     * Gets a new shape for the updated axis ticks
+     * @abstract
+     * @param {Bounds2} graphModelBounds - the bounds of the grid in model coordinates
+     * @param {ModelViewTransform2} modelViewTransform - the new modelViewTransform
+     * @returns {Shape} the new axis ticks shape in View coordinates
+     */
+    getUpdatedTicksShape( graphModelBounds, modelViewTransform ) {
+      // create ticks along the axis
+      const xAxisTicksShape = new Shape();
+
+      // x-axis ticks, add them on every major ticks
+      // Start from the Ceil of the graphMinX to the floor of the graphMaxX because the origin maX be dragged so that the
+      // minX and maxX are decimal points. With the ceil/floor of this also guarantees that we draw
+      // all the ticks visible in the window.
+      for ( let i = Math.ceil( graphModelBounds.minX ); i <= Math.floor( graphModelBounds.maxX ); i++ ) {
+        // increment by model coordinates (1 unit)
+        const isMajor = i % ( MAJOR_TICK_SPACING ) === 0;
+
+        // the origin has a longer tick
+        if ( i === 0 ) {
+          xAxisTicksShape.moveTo( i, -TICK_LENGTH ).verticalLineTo( TICK_LENGTH );
+        }
+        else if ( isMajor ) {
+          xAxisTicksShape.moveTo( i, -TICK_LENGTH / 2 ).verticalLineTo( TICK_LENGTH / 2 );
+        }
+      }
+
+      return modelViewTransform.modelToViewShape( xAxisTicksShape );
     }
   }
 
+  //----------------------------------------------------------------------------------------
+  class YAxisNode extends AxisNode {
+    /**
+     * @constructor
+     *
+     * @param {Graph} graph - the model for the graph
+     */
+    constructor( graph ) {
+      super( graph, yString );
+    }
+
+    /**
+     * Updates the location of the arrow
+     * @abstract
+     * @param {Bounds2} graphViewBounds - the bounds of the grid in view coordinates
+     * @param {Vector2} graphViewOrigin - the origin location in view coordinates
+     */
+    updateAxisArrow( graphViewBounds, graphViewOrigin ) {
+      this.axisArrow.setTailAndTip(
+        graphViewOrigin.x,
+        graphViewBounds.minY - LINE_EXTENT_Y,
+        graphViewOrigin.x,
+        graphViewBounds.maxY + LINE_EXTENT_Y
+      );
+    }
+
+    /**
+     * Updates the location of the labels (origin label and axis label)
+     * @abstract
+     * @param {Vector2} graphViewOrigin - the origin location in view coordinates
+     */
+    updateAxisLabels( graphViewOrigin ) {
+      // Update the label that is to the left of the axis
+      this.axisLabel.centerX = graphViewOrigin.x;
+      this.axisLabel.centerY = this.axisArrow.top - 10;
+
+      // Update the origin label
+      this.originText.centerY = graphViewOrigin.y;
+      this.originText.right = graphViewOrigin.x - 20;
+    }
+
+    /**
+     * Gets a new shape for the updated axis ticks
+     * @abstract
+     * @param {Bounds2} graphModelBounds - the bounds of the grid in model coordinates
+     * @param {ModelViewTransform2} modelViewTransform - the new modelViewTransform
+     * @returns {Shape} the new axis ticks shape in View coordinates
+     */
+    getUpdatedTicksShape( graphModelBounds, modelViewTransform ) {
+      // create ticks along the axis
+      const yAxisTicksShape = new Shape();
+
+      // y-axis ticks, add them on every major ticks
+      // Start from the Ceil of the graphMinY to the floor of the graphMaxY because the origin maxY be dragged so that the
+      // minY and maxY are decimal points. With the ceil/floor of this also guarantees that we draw
+      // all the ticks visible in the window.
+      for ( let i = Math.ceil( graphModelBounds.minY ); i <= Math.floor( graphModelBounds.maxY ); i++ ) {
+        // increment by model coordinates (1 unit)
+        const isMajor = i % ( MAJOR_TICK_SPACING ) === 0;
+
+        // the origin has a longer tick
+        if ( i === 0 ) {
+          yAxisTicksShape.moveTo( -TICK_LENGTH, i ).horizontalLineTo( TICK_LENGTH );
+        }
+        else if ( isMajor ) {
+          yAxisTicksShape.moveTo( -TICK_LENGTH / 2, i ).horizontalLineTo( TICK_LENGTH / 2 );
+        }
+      }
+
+      return modelViewTransform.modelToViewShape( yAxisTicksShape );
+
+    }
+  }
 
   return vectorAddition.register( 'GraphNode', GraphNode );
 
